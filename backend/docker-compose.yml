@@ -1,0 +1,16 @@
+services:
+  my-backend-service:
+    build: .
+    container_name: backend
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`backend.docker`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.services.backend.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    name: dockerdnshost_proxy
+    external: true 

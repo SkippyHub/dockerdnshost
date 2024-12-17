@@ -1,0 +1,59 @@
+services:
+  dns-proxy:
+    image: defreitas/dns-proxy-server:latest
+    platform: linux/amd64
+    container_name: dns-proxy
+    restart: unless-stopped
+    networks:
+      - proxy
+    ports:
+      - "53:53/udp"
+      - "127.0.0.1:5380:5380"
+    environment:
+      - DNS_DOMAIN=docker
+      - DNS_UPSTREAM=8.8.8.8
+      - MG_LOG_LEVEL=DEBUG
+      - MG_REGISTER_CONTAINER_NAMES=1
+      - DPS_NETWORK=proxy
+      - DPS_NETWORK_AUTO_CONNECT=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    networks:
+      - proxy
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=proxy"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  my-frontend-service:
+    build: ./frontend
+    container_name: frontend
+    networks:
+      - proxy
+    ports:
+      - "3000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`frontend.docker`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    driver: bridge
+    name: dockerdnshost_proxy
+
+volumes:
+  node_modules:
